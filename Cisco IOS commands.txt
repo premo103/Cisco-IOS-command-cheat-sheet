@@ -1,0 +1,393 @@
+=========Super-Basics=========
+
+router> enable 							<- enable privileged mode (# prompt)
+router# conf t 							<- enable configure mode (config prompt)
+
+router(config)# exit 					<- goes back one config level (config mode becomes privileged mode) 
+router(config-if)# end 					<- drops back to privileged mode (# prompt), regardless of current prompt
+
+router# ping <ip>						<- It, uh... pings <ip>
+
+!!! from a desktop PC dealing with mulitple network interfaces:
+
+c:\ping.exe <dest ip> -S <source ip>	<- This command pings <dest ip> via <source ip>
+
+router# show ip interface 				<- Show the interfaces configured to use IP
+
+=========Initialize Devices========= (these commands work on both routers and switches)
+router# delete vlan.dat 		<- deletes vlan configuration if present
+router# show flash				<- verify the existence of vlan.dat
+
+router# erase startup-config	<- erases nvram
+router# reload					<- restarts the hardware 
+
+
+
+=========Configure Basic Settings=========
+
+router(config)# hostname new_hostname 		<- sets device name
+router(config)# no ip domain-lookup 		<- stops DNS lookups
+router(config)# enable secret <password>	<- sets encrypted password <password> for privileged mode
+
+router(config)# username <user> priv <num> password <pass> <- creates a LOCAL <user>/<pass> with privilige level <num>
+
+router(config)# line console 0				<- configure console interface
+router(config)# line vty 0 15 				<- configure multiple vty interfaces, 0-15
+
+router(config-line)# logging synchronous	<- enable synchronous mode (usually console only)
+router(config-line)# password <pass>		<- sets <pass> as password for interface
+router(config-line)# login  				<- enables password for logins
+
+router(config)# service password-encryption <- encrypts all passwords on device
+router(config)# banner motd # <MOTD># 		<- message of the day (uses # as terminator)
+
+router# copy run start 						<- writes running config to router memory
+
+router(config)# ip http server 					<- enable HTTP server
+router(config)# ip http authentication <dbase>	<- uses <dbase> for http authentication
+													enable - uses the "enable" password
+													local - uses the local database
+
+
+=========Configuring Interfaces=========
+
+router(config)# interface <interface>		<- configures <interface>
+												f0/0 - fast ethernet 0/0
+												g0/0 - gigabit ethernet 0/0
+												s0/0/0 - serial 0/0/0
+												loopback lo0 - loopback with ID "lo0"
+
+router(config-if)# ip address <ip> <mask>	<- sets <ip> with <mask>
+router(config-if)# description <desc>		<- sets <desc> for interface
+router(config-if)# no shutdown 				<- brings interface up
+
+router(config-if)# bandwidth <band>			<- sets bandwidth for serial interface (usually 128)
+router(config-if)# clock rate <rate>		<- sets clock rate for serial (DCE only, usually 128000)
+
+switch(config-if)# switchport port-security <- enables port security for the interface
+
+switch(config)# interface range f0/2-4		<- configures a range of ports (f0/2-4 = f0/2, f0/3, f0/4)
+
+router(config)# ip route 0.0.0.0 0.0.0.0 <interface>	<- Sets <interface> as the default route
+
+switch(config)# ip default gateway <ip>		<- sets default gateway for the entire device to <ip>
+
+
+
+=========Routing=========
+
+switch(config)# ip route <network ip> <mask> <next hop>			<- all traffic for <network> matching <mask> is
+															       forwarded to <next hop> (recursive static)
+
+switch(config)# ip route <network ip> <mask> <exit interface>	<- all traffic for <network> matching <mask> is
+																   sent out <exit interface> (direct static)
+
+router# show ip route 											<- shows full routing table
+
+
+
+=========VLANs=========
+
+switch(config)# vlan <num> 					<- Step 1: define vlan with ID of <num>
+switch(config-vlan)# name <label> 			<- Step 2: sets readable name <label> for the vlan <num>
+switch(config-vlan)# no shutdown			<- Step 3: enables the vlan
+
+switch(config)# no vlan <num>				<- removes vlan from database (Did you remove the ports first?)
+
+switch# show vlan brief 					<- simple display of vlan info
+
+!!! Now that the VLAN exists, the VLAN can be configured and physical ports can be added to it.
+!!! Another name for this is Switch Virtual Interface (SVI)
+
+switch(config)# interface vlan <num>			<- go into config mode for vlan <num>
+switch(config-vlan)# ip address <ip> <mask>		<- sets vlan address to <ip> with subnet <mask>
+switch(config-vlan)# ip default-gateway <ip>	<- sets default gateway for vlan to <ip>
+
+!!! to enable trunking on a port...
+
+switch(config)# interface <int>				<- configures interface <int>
+switch(config-if)# switchport mode <mode> 	<- sets port to <mode>: auto, dynamic, trunk
+
+switch# show interfaces trunk 				<- see trunk info
+
+!!! if explicitly trunking on the native vlan...
+
+switch(config-if)# switchport trunk native vlan <num> 	<- sets <int> to trunk mode on native vlan <num>
+
+!!! to add the port to a vlan...
+
+switch(config)# interface <int>					<- configures interface <int>
+switch(config-if)# switchport mode access 		<- disables Dynamic Trunking Protocol (DTP) on <int>
+switch(config-if)# switchport access vlan <num>	<- attaches port to vlan <num>
+
+switch(config-if)# switchport no negotiate		<- disables trunking on the interface
+
+switch(config-if)# no switchport access vlan 	<- removes current interface from vlan
+
+!!! To configure encapsulation on trunks (make sure to "no shutdown" on the interface AS WELL AS the sub-interface!):
+
+router(config)# interface <interface>.<vlan num>		<- configures sub-interface for vlan <num> on <interface>
+router(config-subif)# description <desc>				<- sets description of sub-interface to <desc> 
+router(config-subif)# encapsulation dot1Q <vlan num>	<- starts encapsulation for trunks
+router(config-subif)# ip address <ip> <mask>	 		<- sets address to <ip> with mask <mask> for the trunk
+
+
+
+=========Configure OSPF=========
+
+router(config)# router ospf <proc ID> 							<- Enter configuration mode for OSPF with process id <proc ID>
+router(config-router)# router-id <router ID>					<- Assigns <router ID> to ospf process (usually in the format 1.1.1.1)
+router(config-router)# network <net ip> <wildcard> area <num>	<- configures OSPF over <net ip> and <wildcard> within area <num>
+
+!!! OSPF broacasts over all ports by default. If you only need a few ports for it, use these commands:										
+
+router(config-router)# passive-interface default 	<- sets ALL ports to passive (do not broadcast OSPF)
+router(config-router)# no passive-interface <int>	<- enables OSPF broadcast ONLY on specified port
+
+!!! These commands change the cost OSPF uses to calculate routes. Be aware of the (context)
+
+router(config-if)# ip ospf cost <num>						<- sets the cost of the interface being configured to <num>
+router(config-router)# auto-cost reference-bandwidth <num> 	<- sets the default reference cost to <num>
+
+!!! These commands are ways to see the OSPF status
+
+router# show ip ospf interface brief 	<- shows OSPF interface information ("brief" is optional here)
+router# show ip ospf neighbor 			<- shows networks that are connected and ALSO running OSPF
+router# show ip route ospf 				<- limits routing table to OSPF entries
+router# show ip protocols 				<- shows OSPF protocol settings
+router# show ip neighbor detail 		<- shows *ALL* neighbors 
+
+router# show running-config ospf 		<- shows just the OSPF portion of the running-config
+router# show ip ospf 					<- shows OSPF process info
+router# show ip ospf database			<- shows OSPF topology table
+
+
+
+=========DHCP=========
+
+router(config)# service dhcp									<- This enables DHCP, do it to be safe
+router(config)# ip dhcp excluded-address <first ip> <last ip>	<- excludes addresses from global ip pool
+router(config)# ip dhcp pool <pool name>						<- Creates a named DHCP pool and enters (dhcp-config)
+
+router(dhcp-config)# network <net ip> <mask>					<- Assigns a network to the DHCP interface
+router(dhcp-config)# default-router <ip>						<- assigns default gateway to DHCP pool
+																	to DHCP a VLAN, use the ip assigned to the VLAN
+router(dhcp-config)# dns-server <ip>							<- ip of DNS server to be used for the DHCP pool
+router(dhcp-config)# domain-name <domain>						<- domain appended to DHCP clients
+
+!!! To configure DHCP helpers
+
+router#config)# interface <interface> 					<- This interface will be receiving DHCP requests for the DHCP server
+router#config-if)# ip helper-address <DHCP server ip>	<-Turns router into DHCv4 Relay agent to broadcast requests
+
+!!! Troubleshoot DHCP settings
+
+router# show ip dhcp binding 				<- shows IP address binding to MAC address
+router# show ip dhcp server statistics  	<- verifies messages are being received
+router# show ip dhcp conflict 				<- display all address conflicts recorded by the DHCP server
+
+router(config)# no service dhcp 			<-disables DHCP service
+
+
+
+=========NAT=========
+
+!!! Static NAT: 1-to-1 mapping, constant addressing
+
+router(config)# ip nat inside source static <local ip> <global ip>	<- creates static NAT between inside and outside address
+
+router(config)# interface <inside int>								<- configure the interface that will be on the inside
+router(config-if)# ip nat inside									<- enable NAT for the inside interface
+
+router(config)# interface <outside int>								<- configure the interface that will be on the outside
+router(config-if)# ip nat outside									<- enable NAT for the outside interface
+
+!!! Dynamic NAT: 1-to-many mapping in a public pool, first served
+
+router(config)# ip nat pool <name> <start ip> <end ip> netmask <mask>	<- creates a named NAT pool in the IP range with <mask>
+router(config)# access-list <num> permit <source network> <wildcard>	<- creates ACL <num> and permits matching IPs
+
+router(config)# ip nat inside source list <num> pool <name> 			<- creates dynamic NAT with ACL <num> and pool <name>
+router(config)# ip nat inside source list <num> pool <name> overload	<- creates Overload NAT instead of Dynamic NAT
+
+router(config)# interface <inside int>									<- configure the interface that will be on the inside
+router(config-if)# ip nat inside										<- enable NAT for the inside interface
+
+router(config)# interface <outside int>									<- configure the interface that will be on the outside
+router(config-if)# ip nat outside										<- enable NAT for the outside interface
+
+!!! Troubleshoot NAT translations
+
+router# show ip nat translations
+router# show ip nat translations verbose
+router# show ip nat statistics
+
+router# clear ip nat statistics		<- clear dynamic entries when testing
+router# clear ip nat translations	<- clear dynamic entries when testing
+
+
+
+=========Access Control Lists=========
+
+!!! Notes about ACLs: 
+!!! 1) This guide uses "access-group", but if you are configuring a line (console, vty) then use "access-class"
+!!! 2) You will need to know the protocols that your target service uses. For instance: websites use TCP, pings use ICMP
+
+!!! Create a standard ACL to allow a single IP or group of IPs
+
+router(config)# ip access-list standard <name>		<- creates a standard named ACL <name>
+router(config-std-nacl)# permit host <ip>			<- allows single host with <ip>
+router(config-std-nacl)# permit <net ip> <wildcard>	<- permits hosts on <network> that match <wildcard>
+
+!!! Create extended ACLs: 
+!!! Part 1: Extended Numbered ACL (some parts are MANDATORY)
+
+router(config)# 
+	access-list <num> 				<- MANDATORY - This creates or adds to ACL <num>
+	[deny | permit] 				<- MANDATORY - Configures ACL rule to deny or permit
+	<protocol> 						<- MANDATORY - Protocol label for ACL, many options
+	<source IP> 					<- MANDATORY - ACL will be applied to traffic matching this source
+										use "host <source IP>" to specify that the IP refers to a single IP
+	<source wildcard> 				<- The wildcard is necessary when a network address is used as <source IP>
+	<operand>						<- use "eq" here if needing to match a specific port/protocol in the following
+	<port number | protocol name>	<- specify a port (80, 23, etc.) or protocol (http, telnet, etc.)
+	<dest IP>						<- MANDATORY - ACL will be applied to traffic matching this destination
+										use "host <destination IP>" to specify that the IP refers to a single IP
+	<dest wildcard> 				<- The wildcard is necessary when a network address is used as <dest IP>
+	<operand>						<- use "eq" here if needing to match a specific port/protocol in the following
+	<port number | protocol name>	<- specify a port (80, 23, etc.) or protocol (http, telnet, etc.)
+	established						<- this keyword causes the ACL to function like a stateful firewall 
+										(will match on *any packet after the first packet*) 
+
+!!! Part 2: Extended Named ACL (some parts are MANDATORY)
+
+router(config)# ip access-list extended <name>	<- Enters config mode to create/modify ACL named <name>
+router(config-etx-nacl)# 
+	[deny | permit] 							<- MANDATORY - Configures ACL rule to deny or permit
+	<protocol> 									<- MANDATORY - Protocol label for ACL, many options
+	<source IP> 								<- MANDATORY - ACL will be applied to traffic matching this source
+													use "host <source IP>" to specify that the IP refers to a single IP
+	<source wildcard> 							<- The wildcard is necessary when a network address is used as <source IP>
+	<dest IP> 									<- MANDATORY - ACL will be applied to traffic matching this destination
+	<dest wildcard> 							<- The wildcard is necessary when a network address is used as <dest IP>
+													use "host <dest IP>" to specify that the IP refers to a single IP	
+	<operand> 									<- use "eq" here if needing to match a specific port/protocol in the following
+	<port number | protocol name>				<- specify a port (80, 23, etc.) or protocol (http, telnet, etc.)
+	established									<- this keyword causes the ACL to function like a stateful firewall 
+													(will match on *any packet after the first packet*) 
+
+!!! Apply any type of ACL to an interface:
+
+router(config)# interface <int>								<- configure the interface (gigabit,fastethernet,serial)
+router(config-if)# access-group <name or num> [in | out]	<- enables ACL <name or num> in a direction (in or out)
+
+router(config)# line <line interface>						<- configure the interface (vty,console)
+router(config-if)# access-class <name or num> [in | out]	<- enables ACL <name or num> in a direction (in or out)
+
+!!! See existing ACLs
+
+router# show ip access-lists [num | name]		<- base command shows all ACLs, num or name are optional to show specific ACLs
+router# clear ip access-list counters			<- clears counters shown with the 'show access-lists' command
+
+!!! Sweet command that will show interfaces with ACLs and their directions.
+
+router# show ip interface | include is up|is administratively|is down|Outgoing|Inbound
+
+
+CIDR	Subnet Mask 		Wildcard    	Binary										Usable IPs
+/16		255.255.0.0			0.0.255.255		1111 1111.1111 1111.0000 0000.0000 0000		65,534
+
+/17		255.255.128.0		0.0.127.255		1111 1111.1111 1111.1000 0000.0000 0000		32,766
+/18		255.255.192.0		0.0.63.255		1111 1111.1111 1111.1100 0000.0000 0000		16,382	
+/19		255.255.224.0		0.0.31.255		1111 1111.1111 1111.1110 0000.0000 0000		8,190
+/20		255.255.240.0		0.0.15.255		1111 1111.1111 1111.1111 0000.0000 0000		4,094	
+
+/21		255.255.248.0		0.0.7.255		1111 1111.1111 1111.1111 1000.0000 0000		2,046	
+/22		255.255.252.0		0.0.3.255		1111 1111.1111 1111.1111 1100.0000 0000		1,022	
+/23		255.255.254.0		0.0.1.255		1111 1111.1111 1111.1111 1110.0000 0000		510	
+/24		255.255.255.0		0.0.0.255		1111 1111.1111 1111.1111 1111.0000 0000		254	
+
+/25		255.255.255.128		0.0.0.127		1111 1111.1111 1111.1111 1111.1000 0000		126	
+/26		255.255.255.192		0.0.0.63		1111 1111.1111 1111.1111 1111.1100 0000		62	
+/27		255.255.255.224		0.0.0.31		1111 1111.1111 1111.1111 1111.1110 0000		30	
+/28		255.255.255.240		0.0.0.15		1111 1111.1111 1111.1111 1111.1111 0000		14	
+
+/29		255.255.255.248		0.0.0.7			1111 1111.1111 1111.1111 1111.1111 1000		6	
+/30		255.255.255.252		0.0.0.3			1111 1111.1111 1111.1111 1111.1111 1100		2	
+/31		255.255.255.254		0.0.0.1			1111 1111.1111 1111.1111 1111.1111 1110		1	
+/32		255.255.255.255		0.0.0.0			1111 1111.1111 1111.1111 1111.1111 1111		-
+
+
+
+To calculate a summary route:
+	1) Convert the addresses to binary format
+	2) Locate the bit where the common pattern of digits ends
+	3) The number of common bits is subnet mask and the summary route number is represented by the first IP address in the block.
+
+
+
+Dec	Binary 			Dec	Binary			Dec	Binary			Dec	Binary
+0	00000000		64	01000000		128	10000000		192	11000000
+1	00000001		65	01000001		129	10000001		193	11000001
+2	00000010		66	01000010		130	10000010		194	11000010
+3	00000011		67	01000011		131	10000011		195	11000011
+4	00000100		68	01000100		132	10000100		196	11000100
+5	00000101		69	01000101		133	10000101		197	11000101
+6	00000110		70	01000110		134	10000110		198	11000110
+7	00000111		71	01000111		135	10000111		199	11000111
+8	00001000		72	01001000		136	10001000		200	11001000
+9	00001001		73	01001001		137	10001001		201	11001001
+10	00001010		74	01001010		138	10001010		202	11001010
+11	00001011		75	01001011		139	10001011		203	11001011
+12	00001100		76	01001100		140	10001100		204	11001100
+13	00001101		77	01001101		141	10001101		205	11001101
+14	00001110		78	01001110		142	10001110		206	11001110
+15	00001111		79	01001111		143	10001111		207	11001111
+16	00010000		80	01010000		144	10010000		208	11010000
+17	00010001		81	01010001		145	10010001		209	11010001
+18	00010010		82	01010010		146	10010010		210	11010010
+19	00010011		83	01010011		147	10010011		211	11010011
+20	00010100		84	01010100		148	10010100		212	11010100
+21	00010101		85	01010101		149	10010101		213	11010101
+22	00010110		86	01010110		150	10010110		214	11010110
+23	00010111		87	01010111		151	10010111		215	11010111
+24	00011000		88	01011000		152	10011000		216	11011000
+25	00011001		89	01011001		153	10011001		217	11011001
+26	00011010		90	01011010		154	10011010		218	11011010
+27	00011011		91	01011011		155	10011011		219	11011011
+28	00011100		92	01011100		156	10011100		220	11011100
+29	00011101		93	01011101		157	10011101		221	11011101
+30	00011110		94	01011110		158	10011110		222	11011110
+31	00011111		95	01011111		159	10011111		223	11011111
+32	00100000		96	01100000		160	10100000		224	11100000
+33	00100001		97	01100001		161	10100001		225	11100001
+34	00100010		98	01100010		162	10100010		226	11100010
+35	00100011		99	01100011		163	10100011		227	11100011
+36	00100100		100	01100100		164	10100100		228	11100100
+37	00100101		101	01100101		165	10100101		229	11100101
+38	00100110		102	01100110		166	10100110		230	11100110
+39	00100111		103	01100111		167	10100111		231	11100111
+40	00101000		104	01101000		168	10101000		232	11101000
+41	00101001		105	01101001		169	10101001		233	11101001
+42	00101010		106	01101010		170	10101010		234	11101010
+43	00101011		107	01101011		171	10101011		235	11101011
+44	00101100		108	01101100		172	10101100		236	11101100
+45	00101101		109	01101101		173	10101101		237	11101101
+46	00101110		110	01101110		174	10101110		238	11101110
+47	00101111		111	01101111		175	10101111		239	11101111
+48	00110000		112	01110000		176	10110000		240	11110000
+49	00110001		113	01110001		177	10110001		241	11110001
+50	00110010		114	01110010		178	10110010		242	11110010
+51	00110011		115	01110011		179	10110011		243	11110011
+52	00110100		116	01110100		180	10110100		244	11110100
+53	00110101		117	01110101		181	10110101		245	11110101
+54	00110110		118	01110110		182	10110110		246	11110110
+55	00110111		119	01110111		183	10110111		247	11110111
+56	00111000		120	01111000		184	10111000		248	11111000
+57	00111001		121	01111001		185	10111001		249	11111001
+58	00111010		122	01111010		186	10111010		250	11111010
+59	00111011		123	01111011		187	10111011		251	11111011
+60	00111100		124	01111100		188	10111100		252	11111100
+61	00111101		125	01111101		189	10111101		253	11111101
+62	00111110		126	01111110		190	10111110		254	11111110
+63	00111111		127	01111111		191	10111111		255	11111111
