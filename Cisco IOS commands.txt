@@ -14,6 +14,9 @@ c:\ping.exe <dest ip> -S <source ip>	<- This command pings <dest ip> via <source
 
 router# show ip interface 				<- Show the interfaces configured to use IP
 
+router# terminal history size 200				<-shows commands that were las input
+router# show history						<-shows commands that were las input
+
 =========Initialize Devices========= (these commands work on both routers and switches)
 router# delete vlan.dat 		<- deletes vlan configuration if present
 router# show flash				<- verify the existence of vlan.dat
@@ -83,8 +86,14 @@ switch(config)# ip route <network ip> <mask> <exit interface>	<- all traffic for
 																   sent out <exit interface> (direct static)
 
 router# show ip route 											<- shows full routing table
+----------------------------
+Troubleshoot steps missing a route
 
-
+Router# ping <ip> source <ip> <- ping communication
+Router# traceroute <ip>
+Router# show ip route | begin gateway  <-dipslay routing table if the default gateway is set.
+Router# show ip interface brief
+Router# show cdp neighbors <-shows how devices are connected by IP.
 
 =========VLANs=========
 
@@ -161,6 +170,9 @@ router# show running-config ospf 		<- shows just the OSPF portion of the running
 router# show ip ospf 					<- shows OSPF process info
 router# show ip ospf database			<- shows OSPF topology table
 
+router(config)#int <serial> <- state interface we are adding
+router(config-if)# bandwidth <banwidth#> <- selection of bandwidth size !!no bandwidth, this restores to default
+router# show interfaces serial <example 0/0/0> <-shows what bandwidth is used to match
 
 
 =========DHCP=========
